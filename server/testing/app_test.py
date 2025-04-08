@@ -6,15 +6,7 @@ from models import db, Message
 class TestApp:
     '''Flask application in app.py'''
 
-    with app.app_context():
-        m = Message.query.filter(
-            Message.body == "Hello 👋"
-            ).filter(Message.username == "Liza")
-
-        for message in m:
-            db.session.delete(message)
-
-        db.session.commit()
+    # Remove class-level deletion of seeded messages
 
     def test_has_correct_columns(self):
         with app.app_context():
@@ -88,11 +80,18 @@ class TestApp:
     def test_updates_body_of_message_in_database(self):
         '''updates the body of a message in the database.'''
         with app.app_context():
+            # Create test message
+            test_msg = Message(
+                body="Test message",
+                username="TestUser"
+            )
+            db.session.add(test_msg)
+            db.session.commit()
 
-            m = Message.query.first()
-            id = m.id
-            body = m.body
+            id = test_msg.id
+            body = test_msg.body
 
+            # Update the message
             app.test_client().patch(
                 f'/messages/{id}',
                 json={
@@ -100,21 +99,28 @@ class TestApp:
                 }
             )
 
-            g = Message.query.filter_by(body="Goodbye 👋").first()
-            assert(g)
+            # Verify update
+            updated = Message.query.get(id)
+            assert(updated.body == "Goodbye 👋")
 
-            g.body = body
-            db.session.add(g)
+            # Clean up
+            db.session.delete(updated)
             db.session.commit()
 
     def test_returns_data_for_updated_message_as_json(self):
         '''returns data for the updated message as JSON.'''
         with app.app_context():
+            # Create test message
+            test_msg = Message(
+                body="Test message",
+                username="TestUser"
+            )
+            db.session.add(test_msg)
+            db.session.commit()
 
-            m = Message.query.first()
-            id = m.id
-            body = m.body
+            id = test_msg.id
 
+            # Update the message
             response = app.test_client().patch(
                 f'/messages/{id}',
                 json={
@@ -122,12 +128,12 @@ class TestApp:
                 }
             )
 
+            # Verify response
             assert(response.content_type == 'application/json')
             assert(response.json["body"] == "Goodbye 👋")
 
-            g = Message.query.filter_by(body="Goodbye 👋").first()
-            g.body = body
-            db.session.add(g)
+            # Clean up
+            db.session.delete(test_msg)
             db.session.commit()
 
     def test_deletes_message_from_database(self):
